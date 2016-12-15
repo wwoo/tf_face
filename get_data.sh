@@ -13,7 +13,7 @@ python tf/face_extract/crop_faces.py ./data/manifest_uniq.txt $PWD
 
 # Finally split the dataset so we have some validation data
 python tf/face_extract/split_data.py ./data/vision-manifest.txt ./data/train.txt ./data/valid.txt
-i
+
 # Create a tarball to upload to GCS.
 find ./data -type f \( -name "crop_*" -o -name "*.txt" \) -print0 | tar czvf out.tar.gz --null -T -
 
