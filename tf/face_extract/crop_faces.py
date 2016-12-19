@@ -8,7 +8,7 @@ from PIL import Image
 from google.cloud import vision
 
 NUM_THREADS = 2
-PROJECT_ID='google.com:wwoo-compute'
+PROJECT_ID='replace-me-with-your-project-id'
 
 class MetaWriterThread(threading.Thread):
     def __init__(self, queue, output_dir):
@@ -136,4 +136,3 @@ if __name__ == "__main__":
 
     image_queue.join()
     print_queue.join()
-
