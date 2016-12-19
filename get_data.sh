@@ -8,9 +8,8 @@
 #
 # Move the PubFig text file into tf/face_extract/
 #
-# NOTE 2: to use the Vision API for face cropping, you need to have a gcs_copy
-# project with Vision API activated, and a service account that crop_faces.py
-# can use.
+# NOTE 2: to use the Vision API for face cropping, you need to have created a GCP
+# project and activated Vision API.  You'll also need to create a service account.
 
 mkdir data
 
