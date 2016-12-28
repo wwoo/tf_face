@@ -9,6 +9,7 @@ import time
 import math
 import sys
 import subprocess
+import json
 import tarfile
 
 flags = tf.app.flags
@@ -89,7 +90,7 @@ def read_image_from_disk(input_queue):
 
     return rgb_image, label
 
-def inputs(train_file, batch_size=FLAGS.train_batch_size,
+def batch_inputs(train_file, batch_size=FLAGS.train_batch_size,
     num_epochs=FLAGS.train_epochs):
 
     image_list, label_list = get_image_label_list(train_file)
@@ -231,15 +232,20 @@ def main(argv=None):
 
     # Read inventory of training images and labels
     with tf.name_scope('batch_inputs'):
-        train_image_batch, train_label_batch = inputs(FLAGS.train_file,
+        train_image_batch, train_label_batch = batch_inputs(FLAGS.train_file,
             batch_size=FLAGS.train_batch_size, num_epochs=FLAGS.train_epochs)
-        valid_image_batch, valid_label_batch = inputs(FLAGS.valid_file,
+        valid_image_batch, valid_label_batch = batch_inputs(FLAGS.valid_file,
             batch_size=FLAGS.valid_batch_size, num_epochs=FLAGS.valid_epochs)
 
     # These are image and label batch placeholders which we'll feed in during training
     x_ = tf.placeholder("float32", shape=[None, FLAGS.image_size, FLAGS.image_size,
         FLAGS.image_channels])
     y_ = tf.placeholder("float32", shape=[None, FLAGS.num_classes])
+    k_ = tf.placeholder("int64", shape=[None,])
+
+    # Define tensor inputs to use during prediction
+    inputs = {'key': k_.name, 'image': x_.name}
+    tf.add_to_collection('inputs', json.dumps(inputs))
 
     # k is the image size after 4 maxpools
     k = int(math.ceil(FLAGS.image_size / 2.0 / 2.0 / 2.0 / 2.0))
@@ -317,6 +323,13 @@ def main(argv=None):
         correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y_, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
         accuracy_summary = tf.summary.scalar("accuracy_summary", accuracy)
+
+    # return an identity tensor that mirrors the input keys
+    k = tf.identity(k_)
+
+    # Define tensor outputs for prediction
+    outputs = {'key': k.name, 'prediction': correct_pred.name}
+    tf.add_to_collection('outputs', json.dumps(outputs))
 
     sess = tf.Session()
 

@@ -9,6 +9,7 @@ import time
 import math
 import sys
 import subprocess
+import json
 import tarfile
 import logging
 
@@ -28,7 +29,7 @@ flags.DEFINE_float('keep_prob', 0.75, 'L2 dropout, percentage to keep with each 
 flags.DEFINE_integer('valid_steps', 100, 'Number of training steps between between validation steps')
 flags.DEFINE_integer('image_summary_steps', 200, 'Number of training steps between generating an image summary')
 flags.DEFINE_boolean('mod_input', True, 'Whether to perform random modification of images')
-flags.DEFINE_integer('max_steps', 5000, 'Maximum number of training steps')
+flags.DEFINE_integer('max_steps', 7000, 'Maximum number of training steps')
 
 flags.DEFINE_integer('image_size', 96, 'Resize images to this width and height')
 flags.DEFINE_integer('image_channels', 3, 'Number of image channels to use')
@@ -88,7 +89,7 @@ def read_image_from_disk(input_queue):
 
     return rgb_image, label
 
-def inputs(train_file, batch_size=FLAGS.train_batch_size,
+def batch_inputs(train_file, batch_size=FLAGS.train_batch_size,
     num_epochs=FLAGS.train_epochs):
 
     image_list, label_list = get_image_label_list(train_file)
@@ -230,15 +231,20 @@ def main(argv=None):
 
     # Read inventory of training images and labels
     with tf.name_scope('batch_inputs'):
-        train_image_batch, train_label_batch = inputs(FLAGS.train_file,
+        train_image_batch, train_label_batch = batch_inputs(FLAGS.train_file,
             batch_size=FLAGS.train_batch_size, num_epochs=FLAGS.train_epochs)
-        valid_image_batch, valid_label_batch = inputs(FLAGS.valid_file,
+        valid_image_batch, valid_label_batch = batch_inputs(FLAGS.valid_file,
             batch_size=FLAGS.valid_batch_size, num_epochs=FLAGS.valid_epochs)
 
     # These are image and label batch placeholders which we'll feed in during training
     x_ = tf.placeholder("float32", shape=[None, FLAGS.image_size, FLAGS.image_size,
         FLAGS.image_channels])
     y_ = tf.placeholder("float32", shape=[None, FLAGS.num_classes])
+    k_ = tf.placeholder("int64", shape=[None,])
+
+    # Define tensor inputs to use during prediction
+    inputs = {'key': k_.name, 'image': x_.name}
+    tf.add_to_collection('inputs', json.dumps(inputs))
 
     # k is the image size after 4 maxpools
     k = int(math.ceil(FLAGS.image_size / 2.0 / 2.0 / 2.0 / 2.0))
@@ -317,6 +323,13 @@ def main(argv=None):
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
         accuracy_summary = tf.summary.scalar("accuracy_summary", accuracy)
 
+    # return an identity tensor that mirrors the input keys
+    k = tf.identity(k_)
+
+    # Define tensor outputs for prediction
+    outputs = {'key': k.name, 'prediction': correct_pred.name}
+    tf.add_to_collection('outputs', json.dumps(outputs))
+
     sess = tf.Session()
 
     train_writer = tf.summary.FileWriter(os.path.join(base_log_dir, 'train_logs'),
@@ -385,7 +398,7 @@ def main(argv=None):
                             if not os.path.exists(base_model_dir):
                                 os.makedirs(base_model_dir)
                             save_path = saver.save(sess, os.path.join(base_model_dir,
-                                'model.ckpt'))
+                                'export'))
 
                         if FLAGS.copy_to_gcs:
                             gcs_copy(base_log_dir, FLAGS.gcs_export_uri)
