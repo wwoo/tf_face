@@ -52,7 +52,7 @@ python tf/face_extract/split_data.py ./data/vision-manifest.txt ./data/train.txt
 
 You can train and export a model using Google Cloud Machine Learning, or using TensorFlow Serving.
 
-Whichever you choose, you need to ensure that the paths to your input and output paths are set correctly.  See the source for more details [TODO].
+Whichever you choose, you need to ensure that your input and output paths are set correctly.  See the source for more details [TODO: more details on specific flags to use].
 
 A pre-trained model that you can use exists at `tf/sample_run/models/00000001`.
 
