@@ -110,7 +110,7 @@ The job output will be similar to the below. In this case, training terminates o
 
 ### TensorFlow
 
-You can train the model using TensorFlow installed on your own machine.  Note that you need TensorFlow Serving to serve the trained model.  Follow the [setup guide](https://tensorflow.github.io/serving/setup) to get started with TensorFlow Serving.
+To serve your model using TensorFlow Serving, use `export.py` to train and export your model.
 
 ```
 gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
