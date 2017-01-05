@@ -1,5 +1,9 @@
 # Recognising faces using Vision API, TensorFlow & Google Cloud Machine Learning
 
+## Demo
+
+Live demo (hopefully) (here)[http://104.196.149.8:8080].
+
 ## Getting and preparing the training data
 
 The model is trained using a subset of data from [PubFig](http://www.cs.columbia.edu/CAVE/databases/pubfig/). PubFig provides a development set and evaluation set of images, with no people or sample overlaps between the two.  For our face recognition use case, we will just use the evaluation dataset and split these further into training and validation.
