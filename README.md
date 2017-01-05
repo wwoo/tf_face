@@ -1,22 +1,68 @@
 # Recognising faces using Vision API, TensorFlow & Google Cloud Machine Learning
 
-This is a work in progress.  Things to come:
+## Getting the training data
 
-1. Better / any documentation :)
-2. A prediction demo that uses the trained model
+The model is trained using a subset of data from [PubFig](http://www.cs.columbia.edu/CAVE/databases/pubfig/). PubFig provides a development set and evaluation set of images, with no people or sample overlaps between the two.  For our face recognition use case, we will just use the evaluation dataset and split these further into training and validation.
 
-`tf/face_extract/pubfig_get.py` - Use this to download one of the PubFig datasets.  I used the evaluation dataset and split this into training and validation.  It will also crop faces using the supplied PubFig metadata, but note that the face vertices in PubFig can be inaccurate.
+PubFig provides only the links to images on the public web, not the images themselves.  Therefore, it is necessary to download them separately using `pubfig_get.py`.  Some images may not be downloaded successfully due to technical issues such as broken links, removed content, unreachable servers and so-on.
 
+`tf/face_extract/pubfig_get.py` - Use this to download one of the PubFig datasets.  I used data from the [evaluation set](http://www.cs.columbia.edu/CAVE/databases/pubfig/download/#eval). Save this as `eval_urls.txt` in the same directory as `pubfig_get.py`.  `pubfig_get.py` will also crop faces using face vertices supplied in the PubFig metadata, but I encountered incorrect vertices in some cases. Set `IMAGE_CROP = True` if you want the script to crop out the faces using the supplied PubFig metadata.  
 
-`tf/face_extract/crop_faces.py` - Crop faces using the Vision API.  You need a Google Cloud Platform account with Vision API enabled, and a service account.
+Example invocation to read from `eval_urls.txt` and save to the `./data` directory:
 
-`tf/pubfig/train.py` - Trains the TensowFlow model.  Use this to train the model locally and have output printed to stdout.  Train locally using:
+```
+python tf/face_extract/pubfig_get.py tf/face_extract/eval_urls.txt ./data
+```
+
+`pubfig_get.py` generates a `manifest.txt` file, which is a list of local file paths to the downloaded files.  You will likely see some duplicates, due to conflicting filenames that `pubfig_get.py` would have overwritten [TODO - fix].  Remove the duplicates using:
+
+```
+cat ./data/manifest.txt | sort | uniq > ./data/manifest_uniq.txt
+```
+
+`tf/face_extract/crop_faces.py` - Crop faces using Google Vision API, which is far more accurate than using the PubFig supplied metadata.  You need to sign up for a Google Cloud Platform account to use the Vision API.  
+
+Follow the Vision API [Quickstart](https://cloud.google.com/vision/docs/quickstart) to enable the Vision API on your Google Cloud Platform project.  You will also need to [generate a service account](https://cloud.google.com/storage/docs/authentication#generating-a-private-key) that `crop_faces.py` can use to call the Vision API with.  Save the service account JSON as `vapi-acct.json` in the same directory as `crop_faces.py`.
+
+Note: Using Vision API will cost you money, though you can always sign up for a free Google Cloud Platform account with $300 in credits.  It is your responsibility to manage your own usage.
+
+Cropped files are saved in a `crop` directory in the same parent directory as the original file.
+
+Example invocation to crop all files from the paths in `manifest_uniq.txt`, with the current working directory prepended to each file path (as paths are relative in `./data/manifest_uniq.txt`):
+
+```
+python tf/face_extract/crop_faces.py ./data/manifest_uniq.txt $PWD
+```
+
+`tf/face_extract/split_data.py` - Splits the cropped data into training and validation sets.  You can adjust a number of factors in splitting the data - for example, the ratio of training to validation data (`SPLIT_FACTOR`), the minimum & maximum samples for a class to be included (`MIN_SAMPLES` and `MAX_SAMPLES`) and set a minimum/maximum skew (roll, pan and tilt) for a sample to be included [TODO: expose in more friendly way].
+
+Example invocation to read from `./data/vision-manifest.txt`, and write the training and validation dataset (as a set of paths) to `train.txt` and `valid.txt`.
+
+```
+python tf/face_extract/split_data.py ./data/vision-manifest.txt ./data/train.txt ./data/valid.txt
+```
+
+## Training the model
+
+You can train and export a model using Google Cloud Machine Learning, or using TensorFlow Serving.
+
+Whichever you choose, you need to ensure that the paths to your input and output paths are set correctly.  See the source for more details [TODO].
+
+### Cloud Machine Learning
+
+To use Cloud Machine Learning, you need to have a Google Cloud Platform project with the service activated and billing enabled.
+
+Note: Using Cloud Machine Learning will cost you money, though you can always sign up for a free Google Cloud Platform account with $300 in credits.  It is your responsibility to manage your own usage.
+
+Follow the [Cloud Machine Learning setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up) to install all the local pre-requisites.
+
+`tf/pubfig/train.py` - Trains the TensowFlow model.  Use this to train the model locally using the gcloud SDK and have output printed to stdout.
 
 ```
 gcloud beta ml local train --package-path=pubfig --module-name=pubfig.train_log
 ```
 
-`tf/pubfig/train_local.py` - Trains the TensorFlow model, but uses Python logging instead of print statements.  Use this to train on Cloud ML using something similar to:
+`tf/pubfig/train_local.py` - Similar to `train.py`, but uses Python logging instead of print statements.  Use this to train on Cloud ML using something similar to:
 
 ```
 gcloud beta ml jobs submit training pubfig7 --package-path=pubfig --module-name=pubfig.train_log --region=us-central1 --staging-bucket=gs://wwoo-train
@@ -50,6 +96,41 @@ The job output will be similar to the below. In this case, training terminates o
 18:51:16.318 Job completed successfully.
 ```
 
-The code in `train_local.py` and `train.py` assumes that you have uploaded your training data tarballed, gzipped and uploaded to a GCS bucket.
+### TensorFlow Serving
 
-Check `get_data.sh` to get an idea of how things work.  Better documentation (hopefully) to come!
+You can train the model using TensorFlow installed on your own machine.  Note that you need TensorFlow Serving to export the trained model.  Follow the [setup guide](https://tensorflow.github.io/serving/setup) to get started with TensorFlow Serving.
+
+`tf/pubfig_export/export.py` - Trains and exports the model.  The easiest way to run this is to symlink the source into TensorFlow Serving.  For example, if you symlink'ed `tf_face` to `$TF_SERVING_ROOT/tf_models/tf_face`:
+
+```
+$># Build it
+$>bazel build $TF_SERVING_ROOT/tf_models/tf_face/tf/pubfig_export/export
+
+$># Start training
+$>$TF_SERVING_ROOT/bazel-bin/tf_models/tf_face/tf/pubfig_export/export
+```
+
+## Web Interface
+
+### Using Cloud Machine Learning online prediction
+
+[TODO] Add source and instructions
+
+### Using TensorFlow Serving
+
+TensorFlow Serving comes with a standard model server.  You can run it using:
+
+```
+$>$TF_SERVING_ROOT/bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server \
+  --port=9000 --model_name=mnist --model_base_path=sample_run/models/
+```
+
+The web interface uses the TensorFlow Serving protos, so the easiest way to run it is again symlink'ing the source to wherever you build TensorFlow Serving.  For example, if you symlink'ed `tf_face` to `$TF_SERVING_ROOT/tf_models/tf_face`:
+
+```
+$># Build it
+$>bazel build $TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
+
+$># Run it
+$>$TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
+```
