@@ -48,6 +48,8 @@ You can train and export a model using Google Cloud Machine Learning, or using T
 
 Whichever you choose, you need to ensure that the paths to your input and output paths are set correctly.  See the source for more details [TODO].
 
+A pre-trained model that you can use exists at `tf/sample_run/models/00000001`.
+
 ### Cloud Machine Learning
 
 To use Cloud Machine Learning, you need to have a Google Cloud Platform project with the service activated and billing enabled.
