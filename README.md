@@ -130,7 +130,7 @@ TensorFlow Serving comes with a standard model server.  You can run it using:
 
 ```
 $>$TF_SERVING_ROOT/bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server \
-  --port=9000 --model_name=mnist --model_base_path=sample_run/models/
+  --port=9000 --model_name=pubfig --model_base_path=sample_run/models/
 ```
 
 The web interface uses the TensorFlow Serving protos, so the easiest way to run it is again symlink'ing the source to wherever you build TensorFlow Serving.  For example, if you symlink'ed `tf_face` to `$TF_SERVING_ROOT/tf_models/tf_face`:
