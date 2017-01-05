@@ -108,18 +108,12 @@ The job output will be similar to the below. In this case, training terminates o
 18:51:16.318 Job completed successfully.
 ```
 
-### TensorFlow Serving
+### TensorFlow
 
-You can train the model using TensorFlow installed on your own machine.  Note that you need TensorFlow Serving to export the trained model.  Follow the [setup guide](https://tensorflow.github.io/serving/setup) to get started with TensorFlow Serving.
-
-`tf/pubfig_export/export.py` - Trains and exports the model.  The easiest way to run this is to symlink the source into TensorFlow Serving.  For example, if you symlink'ed `tf_face` to `$TF_SERVING_ROOT/tf_models/tf_face`:
+You can train the model using TensorFlow installed on your own machine.  Note that you need TensorFlow Serving to serve the trained model.  Follow the [setup guide](https://tensorflow.github.io/serving/setup) to get started with TensorFlow Serving.
 
 ```
-$># Build it
-$>bazel build $TF_SERVING_ROOT/tf_models/tf_face/tf/pubfig_export/export
-
-$># Start training
-$>$TF_SERVING_ROOT/bazel-bin/tf_models/tf_face/tf/pubfig_export/export
+gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
 ```
 
 ## Web Interface
