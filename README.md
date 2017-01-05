@@ -1,10 +1,12 @@
 # Recognising faces using Vision API, TensorFlow & Google Cloud Machine Learning
 
-## Getting the training data
+## Getting and preparing the training data
 
 The model is trained using a subset of data from [PubFig](http://www.cs.columbia.edu/CAVE/databases/pubfig/). PubFig provides a development set and evaluation set of images, with no people or sample overlaps between the two.  For our face recognition use case, we will just use the evaluation dataset and split these further into training and validation.
 
 PubFig provides only the links to images on the public web, not the images themselves.  Therefore, it is necessary to download them separately using `pubfig_get.py`.  Some images may not be downloaded successfully due to technical issues such as broken links, removed content, unreachable servers and so-on.
+
+### Downloading the data
 
 `tf/face_extract/pubfig_get.py` - Use this to download one of the PubFig datasets.  I used data from the [evaluation set](http://www.cs.columbia.edu/CAVE/databases/pubfig/download/#eval). Save this as `eval_urls.txt` in the same directory as `pubfig_get.py`.  `pubfig_get.py` will also crop faces using face vertices supplied in the PubFig metadata, but I encountered incorrect vertices in some cases. Set `IMAGE_CROP = True` if you want the script to crop out the faces using the supplied PubFig metadata.  
 
@@ -20,11 +22,11 @@ python tf/face_extract/pubfig_get.py tf/face_extract/eval_urls.txt ./data
 cat ./data/manifest.txt | sort | uniq > ./data/manifest_uniq.txt
 ```
 
+### Cropping the faces
+
 `tf/face_extract/crop_faces.py` - Crop faces using Google Vision API, which is far more accurate than using the PubFig supplied metadata.  You need to sign up for a Google Cloud Platform account to use the Vision API.  
 
 Follow the Vision API [Quickstart](https://cloud.google.com/vision/docs/quickstart) to enable the Vision API on your Google Cloud Platform project.  You will also need to [generate a service account](https://cloud.google.com/storage/docs/authentication#generating-a-private-key) that `crop_faces.py` can use to call the Vision API with.  Save the service account JSON as `vapi-acct.json` in the same directory as `crop_faces.py`.
-
-Note: Using Vision API will cost you money, though you can always sign up for a free Google Cloud Platform account with $300 in credits.  It is your responsibility to manage your own usage.
 
 Cropped files are saved in a `crop` directory in the same parent directory as the original file.
 
@@ -33,6 +35,10 @@ Example invocation to crop all files from the paths in `manifest_uniq.txt`, with
 ```
 python tf/face_extract/crop_faces.py ./data/manifest_uniq.txt $PWD
 ```
+
+*Note:* Using Vision API will cost you money, though you can always sign up for a free Google Cloud Platform account with $300 in credits.  It is your responsibility to manage your own usage.
+
+### Dividing the data into training and validation sets
 
 `tf/face_extract/split_data.py` - Splits the cropped data into training and validation sets.  You can adjust a number of factors in splitting the data - for example, the ratio of training to validation data (`SPLIT_FACTOR`), the minimum & maximum samples for a class to be included (`MIN_SAMPLES` and `MAX_SAMPLES`) and set a minimum/maximum skew (roll, pan and tilt) for a sample to be included [TODO: expose in more friendly way].
 
@@ -54,7 +60,7 @@ A pre-trained model that you can use exists at `tf/sample_run/models/00000001`.
 
 To use Cloud Machine Learning, you need to have a Google Cloud Platform project with the service activated and billing enabled.
 
-Note: Using Cloud Machine Learning will cost you money, though you can always sign up for a free Google Cloud Platform account with $300 in credits.  It is your responsibility to manage your own usage.
+*Note:* Using Cloud Machine Learning will cost you money, though you can always sign up for a free Google Cloud Platform account with $300 in credits.  It is your responsibility to manage your own usage.
 
 Follow the [Cloud Machine Learning setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up) to install all the local pre-requisites.
 
