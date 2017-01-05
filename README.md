@@ -2,7 +2,7 @@
 
 ## Demo
 
-Live demo (hopefully) (here)[http://104.196.149.8:8080].
+Live demo (hopefully) [here](http://104.196.149.8:8080).
 
 ## Getting and preparing the training data
 
