@@ -19,14 +19,14 @@ $> pip install -r requirements.txt
 ```
 Download and prepare the data:
 ```
-$> # NOTE: you need a GCP service account saved as $SRC_ROOT/face_extract/vapi-acct.json
+$> # NOTE: you need a GCP service account saved as $SRC_ROOT/tf/face_extract/vapi-acct.json
 $> # to call Google Cloud Vision API
 $> #
 $> ./get_data.sh
 $> #
 $> # lots of output follows
 ```
-Move the prepared data to `/tmp`, where the training logic expects to find them by default:
+Move the prepared data to `/tmp`, where the training code expects to find them by default:
 ```
 $> mv data /tmp
 ```
