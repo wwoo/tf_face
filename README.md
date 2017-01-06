@@ -4,6 +4,74 @@
 
 Live demo (hopefully) [here](http://104.196.149.8:8080).
 
+## Training Quickstart (local)
+
+Firstly, follow the [setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up) to install the Google Cloud Machine Learning SDK.  This will also ask you to install TensorFlow.
+
+Set environment variables:
+```
+$> SRC_ROOT=wherever/you/cloned/the/files
+```
+Install prerequisites:
+```
+$> cd $SRC_ROOT
+$> pip install -r requirements.txt
+```
+Download and prepare the data:
+```
+$> # NOTE: you need a GCP service account saved as $SRC_ROOT/face_extract/vapi-acct.json
+$> # to call Google Cloud Vision API
+$> #
+$> ./get_data.sh
+$> #
+$> # lots of output follows
+```
+Move the prepared data to `/tmp`, where the training logic expects to find them by default:
+```
+$> mv data /tmp
+```
+Train the model locally:
+```
+$> cd tf
+$> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
+$> #
+$> # lots of output follow
+```
+Your trained model will be exported to `/tmp/model/00000001` by default.
+```
+$> ls /tmp/model/00000001
+checkpoint  export.data-00000-of-00001  export.index  export.meta
+$>
+```
+
+## Prediction Quickstart (local)
+
+Firstly, you will need to install TensorFlow Serving by following the guide [here](https://tensorflow.github.io/serving/setup). This will also ask you to install the Bazel build system.
+
+Set environment variables:
+```
+$> SRC_ROOT=wherever/you/cloned/the/files
+$> TF_SERVING_ROOT=wherever/you/cloned/tensorflow/serving
+```
+Install the prerequisites:
+```
+$> cd $TF_SERVING_ROOT/web
+$> pip install -t lib -r requirements.txt
+```
+Bazel build and run the prediction server:
+```
+$> cd $TF_SERVING_ROOT
+$> ln -s $SRC_ROOT tf_models/tf_face
+$> bazel build tf_models/tf_face/tf/web/predict_serving
+$> # ... output
+$> /bazel-bin/tf_models/tf_face/tf/web/predict_serving &
+```
+Serve the model:
+```
+$> ./bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server --port=9000 --model_name=pubfig --model_base_path=/tmp/model
+```
+Navigate to http://localhost:8080.
+
 ## Getting and preparing the training data
 
 The model is trained using a subset of data from [PubFig](http://www.cs.columbia.edu/CAVE/databases/pubfig/). PubFig provides a development set and evaluation set of images, with no people or sample overlaps between the two.  For our face recognition use case, we will just use the evaluation dataset and split these further into training and validation.
@@ -17,13 +85,13 @@ PubFig provides only the links to images on the public web, not the images thems
 Example invocation to read from `eval_urls.txt` and save to the `./data` directory:
 
 ```
-python tf/face_extract/pubfig_get.py tf/face_extract/eval_urls.txt ./data
+$> python tf/face_extract/pubfig_get.py tf/face_extract/eval_urls.txt ./data
 ```
 
 `pubfig_get.py` generates a `manifest.txt` file, which is a list of local file paths to the downloaded files.  You will likely see some duplicates, due to conflicting filenames that `pubfig_get.py` would have overwritten [TODO - fix].  Remove the duplicates using:
 
 ```
-cat ./data/manifest.txt | sort | uniq > ./data/manifest_uniq.txt
+$> cat ./data/manifest.txt | sort | uniq > ./data/manifest_uniq.txt
 ```
 
 ### Cropping the faces
@@ -37,7 +105,7 @@ Cropped files are saved in a `crop` directory in the same parent directory as th
 Example invocation to crop all files from the paths in `manifest_uniq.txt`, with the current working directory prepended to each file path (as paths are relative in `./data/manifest_uniq.txt`):
 
 ```
-python tf/face_extract/crop_faces.py ./data/manifest_uniq.txt $PWD
+$> python tf/face_extract/crop_faces.py ./data/manifest_uniq.txt $PWD
 ```
 
 *Note:* Using Vision API will cost you money, though you can always sign up for a free Google Cloud Platform account with $300 in credits.  It is your responsibility to manage your own usage.
@@ -49,12 +117,12 @@ python tf/face_extract/crop_faces.py ./data/manifest_uniq.txt $PWD
 Example invocation to read from `./data/vision-manifest.txt`, and write the training and validation dataset (as a set of paths) to `train.txt` and `valid.txt`.
 
 ```
-python tf/face_extract/split_data.py ./data/vision-manifest.txt ./data/train.txt ./data/valid.txt
+$> python tf/face_extract/split_data.py ./data/vision-manifest.txt ./data/train.txt ./data/valid.txt
 ```
 
 ## Training the model
 
-You can train and export a model using Google Cloud Machine Learning, or using TensorFlow Serving.
+You can train and export a model using Google Cloud Machine Learning, or using TensorFlow.
 
 Whichever you choose, you need to ensure that your input and output paths are set correctly.  See the source for more details [TODO: more details on specific flags to use].
 
@@ -71,13 +139,14 @@ Follow the [Cloud Machine Learning setup guide](https://cloud.google.com/ml/docs
 `tf/pubfig/train.py` - Trains the TensowFlow model.  Use this to train the model locally using the gcloud SDK and have output printed to stdout.
 
 ```
-gcloud beta ml local train --package-path=pubfig --module-name=pubfig.train_log
+$> gcloud beta ml local train --package-path=pubfig --module-name=pubfig.train_log
 ```
 
 `tf/pubfig/train_local.py` - Similar to `train.py`, but uses Python logging instead of print statements.  Use this to train on Cloud ML using something similar to:
 
 ```
-gcloud beta ml jobs submit training pubfig7 --package-path=pubfig --module-name=pubfig.train_log --region=us-central1 --staging-bucket=gs://wwoo-train
+$> gcloud beta ml jobs submit training pubfig7 --package-path=pubfig \
+$>    --module-name=pubfig.train_log --region=us-central1 --staging-bucket=gs://wwoo-train
 ```
 
 The job output will be similar to the below. In this case, training terminates once 75% validation accuracy is reached.
@@ -113,7 +182,7 @@ The job output will be similar to the below. In this case, training terminates o
 To serve your model using TensorFlow Serving, use `export.py` to train and export your model.
 
 ```
-gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
+$> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
 ```
 
 ## Web Interface
@@ -127,16 +196,16 @@ gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_exp
 TensorFlow Serving comes with a standard model server.  You can run it using:
 
 ```
-$>$TF_SERVING_ROOT/bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server \
-  --port=9000 --model_name=pubfig --model_base_path=sample_run/models/
+$> $TF_SERVING_ROOT/bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server \
+$>   --port=9000 --model_name=pubfig --model_base_path=sample_run/models/
 ```
 
 The web interface uses the TensorFlow Serving protos, so the easiest way to run it is again symlink'ing the source to wherever you build TensorFlow Serving.  For example, if you symlink'ed `tf_face` to `$TF_SERVING_ROOT/tf_models/tf_face`:
 
 ```
-$># Build it
-$>bazel build $TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
+$> # Build it
+$> bazel build $TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
 
-$># Run it
-$>$TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
+$> Run it
+$> $TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
 ```
