@@ -43,6 +43,7 @@ $> ls /tmp/model/00000001
 checkpoint  export.data-00000-of-00001  export.index  export.meta
 $>
 ```
+The model can be trained to at least 75% to 80% validation (classification) accuracy using 336 validation samples.  Beyond 75% validation accuracy, you might find that cross entropy error will begin to increase and fluctuate with only marginal increases in classification accuracy.
 
 ## Prediction Quickstart (local)
 
