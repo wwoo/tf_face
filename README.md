@@ -30,10 +30,15 @@ Move the prepared data to `/tmp`, where the training code expects to find them b
 ```
 $> mv data /tmp
 ```
-Train the model locally:
+Train the model locally.  Make sure to specify the correct number of training classes (`--num_classes`) and number of samples in your validation set (`--valid_batch_size`).  This will differ depending on the number of files you've downloaded and how the data has been divided.
+
+Check the training source for other flags you can specify.
 ```
 $> cd tf
-$> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
+$> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export \
+      -- \
+      --num_classes=<number_of_classes> \
+      --valid_batch_size=<number_of_validation_samples>
 $> #
 $> # lots of output follow
 ```
@@ -43,7 +48,11 @@ $> ls /tmp/model/00000001
 checkpoint  export.data-00000-of-00001  export.index  export.meta
 $>
 ```
-The model can be trained to at least 75% to 80% validation (classification) accuracy using 336 validation samples.  Beyond 75% validation accuracy, you might find that cross entropy error will begin to increase and fluctuate with only marginal increases in classification accuracy.
+
+## Training Results
+The model can be trained to at least 75% validation accuracy with 48 classes (face categories), using 4416 training and 336 validation samples. 80% validation accuracy was the highest achieved using the default hyperparameters in the code.
+
+Beyond 75% validation accuracy, you will likely find that further training will cause the average validation cross entropy loss to increase, indicating the presence of overfitting. Training loss will also start to bounce back and forth to ~zero, perhaps indicating a high learning rate and/or fluctuation around the minimum.
 
 ## Prediction Quickstart (local)
 
@@ -160,7 +169,7 @@ The job output will be similar to the below. In this case, training terminates o
 14:20:35.038 Running command: python -m pubfig.train_log
 14:20:36.915 Recursively copying from gs://wwoo-train/pubfig/out.tar.gz to /tmp/
 14:20:45.528 get_image_label_list: read 4416 items
-14:20:45.629 get_image_label_list: read 384 items
+14:20:45.629 get_image_label_list: read 336 items
 ...
 18:42:03.778 Step [6700] (valid): accuracy: 0.703125, loss: 3.42011
 18:45:55.734 Step [6800] (train): accuracy: 0.729167, loss: 3.08664
