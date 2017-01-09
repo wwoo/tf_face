@@ -90,12 +90,15 @@ def read_image_from_disk(input_queue):
 
     return rgb_image, label
 
-def batch_inputs(train_file, batch_size=FLAGS.train_batch_size,
-    num_epochs=FLAGS.train_epochs):
-
-    image_list, label_list = get_image_label_list(train_file)
-    input_queue = tf.train.slice_input_producer([image_list, label_list],
+def get_input_queue(train_file, num_epochs=None):
+    train_images, train_labels = get_image_label_list(train_file)
+    input_queue = tf.train.slice_input_producer([train_images, train_labels],
         num_epochs=num_epochs, shuffle=FLAGS.shuffle_batches)
+
+    return input_queue
+
+def batch_inputs(input_queue, batch_size=FLAGS.train_batch_size,
+    num_epochs=FLAGS.train_epochs):
     image, label = read_image_from_disk(input_queue)
     image = tf.reshape(image, [FLAGS.image_size, FLAGS.image_size, FLAGS.image_channels])
 
@@ -223,18 +226,22 @@ def main(argv=None):
         # Copy training data
         if FLAGS.copy_from_gcs:
             gcs_copy(FLAGS.gcs_tarball_uri, FLAGS.tmp_dir)
-            extract_tarball(os.path.join(FLAGS.tmp_dir, os.path.basename(FLAGS.gcs_tarball_uri)), 
+            extract_tarball(os.path.join(FLAGS.tmp_dir, os.path.basename(FLAGS.gcs_tarball_uri)),
                 FLAGS.tmp_dir)
 
     except Exception, e:
         print("Failed to download and extract tarball from %s to %s" % (FLAGS.gcs_tarball_uri, FLAGS.tmp_dir))
-        exit(1) 
+        exit(1)
 
-    # Read inventory of training images and labels
+    # Create input queues to retrieve image and label batches
+    train_queue = get_input_queue(FLAGS.train_file)
+    valid_queue = get_input_queue(FLAGS.valid_file)
+
+    # Read next batch of training images and labels
     with tf.name_scope('batch_inputs'):
-        train_image_batch, train_label_batch = batch_inputs(FLAGS.train_file,
+        train_image_batch, train_label_batch = batch_inputs(train_queue,
             batch_size=FLAGS.train_batch_size, num_epochs=FLAGS.train_epochs)
-        valid_image_batch, valid_label_batch = batch_inputs(FLAGS.valid_file,
+        valid_image_batch, valid_label_batch = batch_inputs(valid_queue,
             batch_size=FLAGS.valid_batch_size, num_epochs=FLAGS.valid_epochs)
 
     # These are image and label batch placeholders which we'll feed in during training
@@ -423,4 +430,3 @@ def main(argv=None):
 
 if __name__ == '__main__':
     tf.app.run()
-

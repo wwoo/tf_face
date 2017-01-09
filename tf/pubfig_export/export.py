@@ -19,7 +19,7 @@ FLAGS = flags.FLAGS
 
 #===========================
 # hyperparameters to use for training
-flags.DEFINE_integer('train_batch_size', 100, 'Training batch size')
+flags.DEFINE_integer('train_batch_size', 200, 'Training batch size')
 flags.DEFINE_integer('train_epochs', None, 'Training epochs')
 flags.DEFINE_integer('valid_batch_size', 336, 'Validation batch size')
 flags.DEFINE_integer('valid_epochs', None, 'Validation epochs')
@@ -27,7 +27,7 @@ flags.DEFINE_boolean('shuffle_batches', True, 'Whether to shuffle batches')
 flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
 flags.DEFINE_integer('num_classes', 48, 'Number of classification classes')
 flags.DEFINE_float('keep_prob', 0.75, 'L2 dropout, percentage to keep with each training batch')
-flags.DEFINE_integer('valid_steps', 100, 'Number of training steps between between validation steps')
+flags.DEFINE_integer('valid_steps', 10, 'Number of training steps between between validation steps')
 flags.DEFINE_integer('image_summary_steps', 200, 'Number of training steps between generating an image summary')
 flags.DEFINE_boolean('mod_input', True, 'Whether to perform random modification of images')
 flags.DEFINE_integer('max_steps', 10000, 'Maximum number of training steps')
@@ -93,12 +93,15 @@ def read_image_from_disk(input_queue):
 
     return rgb_image, label
 
-def batch_inputs(train_file, batch_size=FLAGS.train_batch_size,
-    num_epochs=FLAGS.train_epochs):
-
-    image_list, label_list = get_image_label_list(train_file)
-    input_queue = tf.train.slice_input_producer([image_list, label_list],
+def get_input_queue(train_file, num_epochs=None):
+    train_images, train_labels = get_image_label_list(train_file)
+    input_queue = tf.train.slice_input_producer([train_images, train_labels],
         num_epochs=num_epochs, shuffle=FLAGS.shuffle_batches)
+
+    return input_queue
+
+def batch_inputs(input_queue, batch_size=FLAGS.train_batch_size,
+    num_epochs=FLAGS.train_epochs):
     image, label = read_image_from_disk(input_queue)
     image = tf.reshape(image, [FLAGS.image_size, FLAGS.image_size, FLAGS.image_channels])
 
@@ -233,11 +236,15 @@ def main(argv=None):
         print("Failed to download and extract tarball from %s to %s" % (FLAGS.gcs_tarball_uri, FLAGS.tmp_dir))
         exit(1)
 
-    # Read inventory of training images and labels
+    # Create input queues to retrieve image and label batches
+    train_queue = get_input_queue(FLAGS.train_file)
+    valid_queue = get_input_queue(FLAGS.valid_file)
+
+    # Read next batch of training images and labels
     with tf.name_scope('batch_inputs'):
-        train_image_batch, train_label_batch = batch_inputs(FLAGS.train_file,
+        train_image_batch, train_label_batch = batch_inputs(train_queue,
             batch_size=FLAGS.train_batch_size, num_epochs=FLAGS.train_epochs)
-        valid_image_batch, valid_label_batch = batch_inputs(FLAGS.valid_file,
+        valid_image_batch, valid_label_batch = batch_inputs(valid_queue,
             batch_size=FLAGS.valid_batch_size, num_epochs=FLAGS.valid_epochs)
 
     # These are image and label batch placeholders which we'll feed in during training
@@ -310,6 +317,7 @@ def main(argv=None):
     # Run optimizer step
     with tf.name_scope('train'):
         opt = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
+        #opt = tf.train.GradientDescentOptimizer(learning_rate=FLAGS.learning_rate)
         grads = opt.compute_gradients(cost)
         train_step = opt.apply_gradients(grads)
 
@@ -400,6 +408,7 @@ def main(argv=None):
 
                     if (valid_acc >= FLAGS.valid_accuracy_exit_threshold and
                         train_acc >= FLAGS.train_accuracy_exit_threshold) or step >= FLAGS.max_steps:
+
                         print("Step [%s] (complete)" % (step))
                         base_model_dir = os.path.join(FLAGS.tmp_dir, 'model')
 
