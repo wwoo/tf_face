@@ -148,17 +148,17 @@ To use Cloud Machine Learning, you need to have a Google Cloud Platform project 
 
 Follow the [Cloud Machine Learning setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up) to install all the local pre-requisites.
 
-`tf/pubfig/train.py` - Trains the TensowFlow model.  Use this to train the model locally using the gcloud SDK and have output printed to stdout.
+`tf/pubfig_export/export.py` - Trains the TensowFlow model.  Use this to train the model locally using the gcloud SDK and have output printed to stdout.
 
 ```
-$> gcloud beta ml local train --package-path=pubfig --module-name=pubfig.train_log
+$> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
 ```
 
-`tf/pubfig/train_local.py` - Similar to `train.py`, but uses Python logging instead of print statements.  Use this to train on Cloud ML using something similar to:
+`tf/pubfig_export/export_log.py` - Similar to `export.py`, but uses Python logging instead of print statements.  Use this to train on Cloud ML using something similar to:
 
 ```
-$> gcloud beta ml jobs submit training pubfig7 --package-path=pubfig \
-$>    --module-name=pubfig.train_log --region=us-central1 --staging-bucket=gs://wwoo-train
+$> gcloud beta ml jobs submit training pubfig7 --package-path=pubfig_export \
+$>    --module-name=pubfig_export.export_log --region=us-central1 --staging-bucket=gs://wwoo-train
 ```
 
 The job output will be similar to the below. In this case, training terminates once 75% validation accuracy is reached.
@@ -187,14 +187,6 @@ The job output will be similar to the below. In this case, training terminates o
 18:50:25.382 Tearing down TensorFlow.
 18:51:09.881 Finished tearing down TensorFlow.
 18:51:16.318 Job completed successfully.
-```
-
-### TensorFlow
-
-To serve your model using TensorFlow Serving, use `export.py` to train and export your model.
-
-```
-$> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
 ```
 
 ## Web Interface
