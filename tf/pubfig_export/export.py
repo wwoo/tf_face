@@ -410,28 +410,6 @@ def main(argv=None):
                         train_acc >= FLAGS.train_accuracy_exit_threshold) or step >= FLAGS.max_steps:
 
                         print("Step [%s] (complete)" % (step))
-                        base_model_dir = os.path.join(FLAGS.tmp_dir, 'model')
-
-                        if FLAGS.save_model:
-                            if not os.path.exists(base_model_dir):
-                                os.makedirs(base_model_dir)
-
-                            saver = tf.train.Saver(sharded=False)
-                            model_exporter = exporter.Exporter(saver)
-
-                            model_exporter.init(
-                                sess.graph.as_graph_def(),
-                                named_graph_signatures={
-                                    'inputs': exporter.generic_signature({'images': x_}),
-                                    'outputs': exporter.generic_signature({'scores': softmax_pred})})
-
-                            model_exporter.export(base_model_dir, tf.constant(FLAGS.export_version),
-                                sess)
-
-                        if FLAGS.copy_to_gcs:
-                            gcs_copy(base_log_dir, FLAGS.gcs_export_uri)
-                            gcs_copy(base_model_dir, FLAGS.gcs_export_uri)
-
                         # exit if the validation accuracy threshold is reached
                         break
 
@@ -442,6 +420,32 @@ def main(argv=None):
             print("Validation accuracy: %s" % result[0])
 
         finally:
+            if FLAGS.save_model:
+                # make sure all the summaries are flushed to disk
+                valid_writer.flush()
+                train_writer.flush()
+
+                base_model_dir = os.path.join(FLAGS.tmp_dir, 'model')
+
+                if not os.path.exists(base_model_dir):
+                    os.makedirs(base_model_dir)
+
+                    saver = tf.train.Saver(sharded=False)
+                    model_exporter = exporter.Exporter(saver)
+
+                    model_exporter.init(
+                        sess.graph.as_graph_def(),
+                        named_graph_signatures={
+                            'inputs': exporter.generic_signature({'images': x_}),
+                            'outputs': exporter.generic_signature({'scores': softmax_pred})})
+
+                    model_exporter.export(base_model_dir, tf.constant(FLAGS.export_version),
+                        sess)
+
+                if FLAGS.copy_to_gcs:
+                    gcs_copy(base_log_dir, FLAGS.gcs_export_uri)
+                    gcs_copy(base_model_dir, FLAGS.gcs_export_uri)
+
             coord.request_stop()
             coord.join(threads)
             sess.close()
