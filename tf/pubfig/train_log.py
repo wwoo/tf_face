@@ -96,8 +96,7 @@ def get_input_queue(train_file, num_epochs=None):
 
     return input_queue
 
-def batch_inputs(input_queue, batch_size=FLAGS.train_batch_size,
-    num_epochs=FLAGS.train_epochs):
+def batch_inputs(input_queue, batch_size=FLAGS.train_batch_size):
     image, label = read_image_from_disk(input_queue)
     image = tf.reshape(image, [FLAGS.image_size, FLAGS.image_size, FLAGS.image_channels])
 
@@ -239,9 +238,9 @@ def main(argv=None):
     # Read next batch of training images and labels
     with tf.name_scope('batch_inputs'):
         train_image_batch, train_label_batch = batch_inputs(train_queue,
-            batch_size=FLAGS.train_batch_size, num_epochs=FLAGS.train_epochs)
+            batch_size=FLAGS.train_batch_size)
         valid_image_batch, valid_label_batch = batch_inputs(valid_queue,
-            batch_size=FLAGS.valid_batch_size, num_epochs=FLAGS.valid_epochs)
+            batch_size=FLAGS.valid_batch_size)
 
     # Read inventory of training images and labels
     with tf.name_scope('batch_inputs'):
