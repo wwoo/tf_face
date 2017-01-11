@@ -50,9 +50,15 @@ $>
 ```
 
 ## Training Results
-The model can be trained to at least 75% validation accuracy with 48 classes (face categories), using 4416 training and 336 validation samples. 80% validation accuracy was the highest achieved using the default hyperparameters in the code.
+The model can be trained to 80% validation accuracy with 48 classes (face categories), using 4402 training and 336 validation samples.  With the default hyperparameters, overfitting started to occur past ~1.2K steps using a learning rate of 0.01.
 
-Beyond 75% validation accuracy, you will likely find that further training will cause the average validation cross entropy loss to increase, indicating the presence of overfitting. Training loss will also start to bounce back and forth to ~zero, perhaps indicating a high learning rate and/or fluctuation around the minimum [TODO: suspect this is due to dataset not being shuffled properly. Investigate].
+Orange = training set, Blue = validation set.
+
+Cross entropy loss:
+![Loss](https://storage.googleapis.com/wwoo-htdocs/images/tf_face_xent.png "Loss")
+
+Classification accuracy:
+![Accuracy](https://storage.googleapis.com/wwoo-htdocs/images/tf_face_acc.png "Accuracy")
 
 [TODO: insert graphs]
 
