@@ -55,12 +55,13 @@ The model can be trained to 80% validation accuracy with 48 classes (face catego
 Orange = training set, Blue = validation set.
 
 Cross entropy loss:
+
 ![Loss](https://storage.googleapis.com/wwoo-htdocs/images/tf_face_xent.png "Loss")
 
 Classification accuracy:
+
 ![Accuracy](https://storage.googleapis.com/wwoo-htdocs/images/tf_face_acc.png "Accuracy")
 
-[TODO: insert graphs]
 
 ## Prediction Quickstart (local)
 
