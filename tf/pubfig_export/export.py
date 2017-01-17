@@ -250,10 +250,10 @@ def main(argv=None):
     x_ = tf.placeholder("float32", shape=[None, FLAGS.image_size, FLAGS.image_size,
         FLAGS.image_channels])
     y_ = tf.placeholder("float32", shape=[None, FLAGS.num_classes])
-    k_ = tf.placeholder("int64", shape=[None,])
+    keys_ = tf.placeholder("int64", shape=[None,])
 
     # Define tensor inputs to use during prediction
-    inputs = {'key': k_.name, 'image': x_.name}
+    inputs = {'key': keys_.name, 'image': x_.name}
     tf.add_to_collection('inputs', json.dumps(inputs))
 
     # k is the image size after 4 maxpools
@@ -330,15 +330,17 @@ def main(argv=None):
 
     # Evaluate model accuracy
     with tf.name_scope('predict'):
-        correct_pred = tf.equal(tf.argmax(pred, 1), tf.argmax(y_, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+        pred_top = tf.argmax(pred, 1)
+        pred_scores = tf.nn.softmax(pred)
+        pred_correct = tf.equal(pred_top, tf.argmax(y_, 1))
+        accuracy = tf.reduce_mean(tf.cast(pred_correct, tf.float32))
         accuracy_summary = tf.summary.scalar("accuracy_summary", accuracy)
 
     # return an identity tensor that mirrors the input keys
-    k = tf.identity(k_)
+    keys = tf.identity(keys_)
 
     # Define tensor outputs for prediction
-    outputs = {'key': k.name, 'prediction': correct_pred.name}
+    outputs = {'key': keys.name, 'prediction': pred_top.name, 'scores': pred_scores.name}
     tf.add_to_collection('outputs', json.dumps(outputs))
 
     # For serving (inference)
