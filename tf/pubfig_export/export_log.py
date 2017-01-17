@@ -327,7 +327,6 @@ def main(argv=None):
     # Evaluate model accuracy
     with tf.name_scope('predict'):
         pred_top = tf.argmax(pred, 1)
-        pred_scores = tf.nn.softmax(pred)
         pred_correct = tf.equal(pred_top, tf.argmax(y_, 1))
         accuracy = tf.reduce_mean(tf.cast(pred_correct, tf.float32))
         accuracy_summary = tf.summary.scalar("accuracy_summary", accuracy)
