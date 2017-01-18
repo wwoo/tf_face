@@ -70,13 +70,13 @@ Your trained model will be exported to `/tmp/model/` by default.
 Install the Cloud ML SDK and prepare your environment per the [setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up).
 
 ### Training a model using Cloud ML to serve using TensorFlow Serving
-
+Example:
 ```
 $> gcloud beta ml jobs submit training example_job123 --package-path=pubfig_export --module-name=pubfig_export.export_log --region=us-central1 --staging-bucket=gs://wwoo-train
 ```
 
 ### Training a model using Cloud ML to serve using Cloud ML Online Prediction
-
+Example:
 ```
 $> gcloud beta ml jobs submit training example_job123 --package-path=pubfig_cloudml --module-name=pubfig_cloudml.export_log --region=us-central1 --staging-bucket=gs://wwoo-train
 ```
