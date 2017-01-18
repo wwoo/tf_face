@@ -9,10 +9,11 @@ import base64
 import cStringIO
 import os
 import json
+import logging
 
 import resources, classes
 
-PROJECT = 'wwoo-gcp'
+PROJECT = 'your-project-id'
 MODEL_NAME = 'face_test'
 IMAGE_SIZE = 96
 
@@ -30,9 +31,6 @@ def get_cloudml_service():
     return discovery.build('ml', 'v1beta1', credentials=credentials)
 
 flask_app = Flask(__name__)
-
-vision_svc = get_vision_service()
-cloudml_svc = get_cloudml_service()    
 
 @flask_app.route('/', methods=['GET'])
 def get_index():
@@ -96,6 +94,7 @@ def detect_face(image_content):
     (top, left, bottom, right, img_str) = 0, 0, 0, 0, None
 
     try:
+        vision_svc = get_vision_service()
         request = vision_svc.images().annotate(body={
             'requests': request_dict
         })
@@ -119,7 +118,7 @@ def detect_face(image_content):
             img_str = base64.b64encode(image_buffer.getvalue())
 
     except Exception, e:
-        print("Something went wrong: %s" % str(e))
+        logging.exception("Something went wrong [detect_face]")
 
     return top, left, bottom, right, img_str
 
@@ -137,13 +136,14 @@ def recognise_face(img_str):
     }
 
     try:
+        cloudml_svc = get_cloudml_service()
         request = cloudml_svc.projects().predict(name=parent, body=request_dict)
         response = request.execute()
         pred = response['predictions'][0]['scores']
         pred = numpy.asarray(pred)
 
     except Exception, e:
-        print("Something went wrong: %s" % str(e))
+        logging.exception("Something went wrong [recognise_face]")
 
     return pred
 

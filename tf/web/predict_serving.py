@@ -100,6 +100,7 @@ def detect_face(image_content):
     (top, left, bottom, right, rgb) = 0, 0, 0, 0, None
 
     try:
+        vision_svc = get_vision_service()
         request = vision_svc.images().annotate(body={
             'requests': request_dict
         })
@@ -151,4 +152,3 @@ def main(_):
 if __name__ == '__main__':
     vision_svc = get_vision_service()
     tf.app.run()
-
