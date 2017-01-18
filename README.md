@@ -34,7 +34,7 @@ Train the model locally.  Make sure to specify the correct number of training cl
 
 Check the training source for other flags you can specify.
 
-### Training a model to serve using TensorFlow Serving
+### Training a model locally to serve using TensorFlow Serving
 
 ```
 $> cd tf
@@ -64,6 +64,22 @@ $> #
 $> # lots of output follow
 ```
 Your trained model will be exported to `/tmp/model/` by default.
+
+## Training Quickstart (Cloud ML)
+
+Install the Cloud ML SDK and prepare your environment per the [setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up).
+
+### Training a model using Cloud ML to serve using TensorFlow Serving
+
+```
+$> gcloud beta ml jobs submit training example_job123 --package-path=pubfig_export --module-name=pubfig_export.export_log --region=us-central1 --staging-bucket=gs://wwoo-train
+```
+
+### Training a model using Cloud ML to serve using Cloud ML Online Prediction
+
+```
+$> gcloud beta ml jobs submit training example_job123 --package-path=pubfig_cloudml --module-name=pubfig_cloudml.export_log --region=us-central1 --staging-bucket=gs://wwoo-train
+```
 
 ## Training Results
 The model can be trained to 80% validation accuracy with 48 classes (face categories), using 4402 training and 336 validation samples.  With the default hyperparameters, overfitting started to occur past ~1.2K steps using a learning rate of 0.01.
