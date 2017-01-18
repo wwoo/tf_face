@@ -15,7 +15,7 @@ import cStringIO
 import os
 import json
 
-import classes
+import resources, classes
 
 tf.app.flags.DEFINE_string('host', 'localhost', 'Prediction host')
 tf.app.flags.DEFINE_integer('port', 9000, 'Prediction host port')
@@ -33,7 +33,7 @@ vision_svc = None
 
 def get_vision_service():
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
-        os.path.join(os.path.dirname(__file__), 'vapi-acct.json'), SCOPES)
+        os.path.join(resources.__path__[0], 'vapi-acct.json'), SCOPES)
     return discovery.build('vision', 'v1', credentials=credentials)
 
 @flask_app.route('/', methods=['GET'])
@@ -41,10 +41,6 @@ def get_index():
     return render_template("index.html",
         results = 'false',
         error = 'false')
-
-@flask_app.route('/fancy', methods=['GET'])
-def get_fancy():
-    return render_template("fancy.html")
 
 @flask_app.route('/', methods=['POST'])
 def classify_file():
@@ -155,3 +151,4 @@ def main(_):
 if __name__ == '__main__':
     vision_svc = get_vision_service()
     tf.app.run()
+
