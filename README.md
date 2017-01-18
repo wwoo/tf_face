@@ -2,7 +2,7 @@
 
 ## Demo
 
-Live demo (hopefully) [here](http://104.196.149.8:8080).
+Live demo (hopefully) [here](http://wwoo-gcp.appspot.com/).
 
 ## Training Quickstart (local)
 
@@ -33,6 +33,9 @@ $> mv data /tmp
 Train the model locally.  Make sure to specify the correct number of training classes (`--num_classes`) and number of samples in your validation set (`--valid_batch_size`).  This will differ depending on the number of files you've downloaded and how the data has been divided.
 
 Check the training source for other flags you can specify.
+
+### Training a model to serve using TensorFlow Serving
+
 ```
 $> cd tf
 $> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export \
@@ -42,12 +45,25 @@ $> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_
 $> #
 $> # lots of output follow
 ```
-Your trained model will be exported to `/tmp/model/00000001` by default.
+Your trained model will be exported to `/tmp/model/00000001/` by default.
 ```
 $> ls /tmp/model/00000001
 checkpoint  export.data-00000-of-00001  export.index  export.meta
 $>
 ```
+
+### Training a model locally to serve using Cloud ML Online Prediction
+
+```
+$> cd tf
+$> gcloud beta ml local train --package-path=pubfig_cloudml --module-name=pubfig_cloudml.export \
+      -- \
+      --num_classes=<number_of_classes> \
+      --valid_batch_size=<number_of_validation_samples>
+$> #
+$> # lots of output follow
+```
+Your trained model will be exported to `/tmp/model/` by default.
 
 ## Training Results
 The model can be trained to 80% validation accuracy with 48 classes (face categories), using 4402 training and 336 validation samples.  With the default hyperparameters, overfitting started to occur past ~1.2K steps using a learning rate of 0.01.
@@ -198,9 +214,19 @@ The job output will be similar to the below. In this case, training terminates o
 
 ## Web Interface
 
-### Using Cloud Machine Learning online prediction
+### Using Cloud Machine Learning Online Prediction
 
-[TODO] Add source and instructions
+`tf_face/web_cloudml/` contains source which can be deployed to Google App Engine.
+
+You will need to modify `tf_face/web_cloudml/main.py` to match your project ID and model name.  Also replace `resources/vapi-acct.json.replaceme` with your service account key.
+
+Deploy using:
+```
+$> cd ${SRC_ROOT}/tf/web_cloudml
+$> gcloud app deployed
+$>
+$> # lots of output follows
+```
 
 ### Using TensorFlow Serving
 
@@ -217,6 +243,6 @@ The web interface uses the TensorFlow Serving protos, so the easiest way to run 
 $> # Build it
 $> bazel build $TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
 
-$> Run it
+$> # Run it
 $> $TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
 ```
