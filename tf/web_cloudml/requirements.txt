@@ -1,0 +1,5 @@
+Flask==0.12
+gunicorn==19.6.0
+numpy==1.11.3
+Pillow==4.0.0
+google-api-python-client==1.5.5

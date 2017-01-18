@@ -1,0 +1,151 @@
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- jQuery -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+  <!-- In-line styles -->
+  <style>
+    body {
+      padding-top: 50px;
+    }
+    .starter-template {
+      padding: 40px 15px;
+      text-align: center;
+    }
+    .center_div{
+      margin: 0 auto;
+      text-align: left;
+      width: 400px /* value of your choice which suits your alignment */
+    }
+    .more_div{
+      margin: 0 auto;
+      text-align: left;
+      width: 80% /* value of your choice which suits your alignment */
+    }
+    .loading_div {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 5px;
+    }
+    .loading_img {
+      width: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">Face Recognition Demo</a>
+      </div>
+      <div id="navbar" class="collapse navbar-collapse">
+      </div><!--/.nav-collapse -->
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <div class="starter-template">
+      <h1>Classifying faces using Google Cloud Vision API, TensorFlow and Cloud ML</h1>
+      <p class="lead">Upload a picture of your favourite celebrity and I'll tell you who it is.</p>
+      <p>
+        <h4>I have been trained to identify the following people (<a href="#" onclick="toggleMore()">expand</a>).</h4>
+      </p>
+      <p>
+        <h4>Find my source code <a href="http://github.com/wwoo/tf_face/">here</a>.</h4>
+      </p>
+      <div class="more_div" id="more" style="display: none">
+        <p>
+          Alicia Keys, Angelina Jolie, Ashton Kutcher, Avril Lavigne, Beyonce Knowles,
+          Brad Pitt, Cameron Diaz, Cate Blanchett, Charlize Theron, Colin Farrell,
+          Colin Powell, Daniel Radcliffe, David Beckham, Drew Barrymore, Eva Mendes,
+          George Clooney, Gwyneth Paltrow, Halle Berry, Harrison Ford, Hugh Grant,
+          Jennifer Aniston, Jennifer Lopez, Jessica Alba, Jessica Simpson, Jodie Foster,
+          John Travolta, Kate Moss, Kate Winslet, Keira Knightley, Leonardo DiCaprio,
+          Lindsay Lohan, Mariah Carey, Matt Damon, Meryl Streep, Morgan Freeman, Nicolas Cage,
+          Nicole Kidman, Orlando Bloom, Oprah Winfrey, Reese Witherspoon, Russell Crowe,
+          Salma Hayek, Sharon Stone, Simon Cowell, Tom Cruise, Uma Thurman, Victoria Beckham,
+          Will Smith
+        </p>
+      </div>
+      <hr>
+      <p class="lead">
+        <img id="preview" src="" height="350" alt="No image preview">
+      </p>
+      <div class="center_div">
+        <form method="post" action="/" enctype="multipart/form-data" id="image_form">
+          <div class="form-group">
+            <input type="file" name="file" onchange="previewFile()">
+          </div>
+        </form>
+      </div>
+      <div id="loading" style="display: none" class="center_div">
+        <img src="/static/hourglass.gif" class="loading_img"/>Thinking about it ...
+      </div>
+      <div id="prediction" style="display: none" class="center_div">
+        <p><h4>I think this is {{ prediction_1 }} ({{ score_1 }}%).</h4></p>
+        <p>
+          My other guesses would be:
+          <ul>
+            <li>{{ prediction_2 }} ({{ score_2 }}%)</li>
+            <li>{{ prediction_3 }} ({{ score_3 }}%)</li>
+            <li>{{ prediction_4 }} ({{ score_4 }}%)</li>
+            <li>{{ prediction_5 }} ({{ score_5 }}%)</li>
+          </ul>
+        </p>
+      </div>
+      <div id="error" style="display: none">
+        <p>Uh oh. I either couldn't find a face in the picture, or some other gremlins caused this.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function previewFile() {
+      var file = document.querySelector('input[type=file]').files[0];
+      var reader = new FileReader();
+
+      reader.addEventListener("load", function () {
+        $("#preview").attr("src", reader.result);
+      }, false);
+
+      if (file) {
+        reader.readAsDataURL(file);
+      }
+
+      $("#prediction").hide();
+      $("#loading").show();
+      $("#image_form").submit();
+    }
+
+    function toggleMore() {
+      $("#more").toggle();
+    }
+
+    $(document).ready(function() {
+      var error = {{ error }}
+      var results = {{ results }};
+      if (results == true) {
+        $("#prediction").show();
+        $("#preview").attr("src", "data:image/png;base64,{{ image_b64 }}");
+      }
+      if (error == true) {
+        $("#error").show();
+      }
+    });
+  </script>
+</body>
+</html>
