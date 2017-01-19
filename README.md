@@ -2,7 +2,7 @@
 
 ## Demo
 
-Live demo (hopefully) [here](http://wwoo-gcp.appspot.com/).
+Live demo (hopefully) [here](http://pubfig-ml.appspot.com/).
 
 ## Training Quickstart (local)
 
