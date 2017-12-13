@@ -36,29 +36,13 @@ Train the model locally.  Make sure to specify the correct number of training cl
 
 Check the training source for other flags you can specify.
 
-### Training a model locally to serve using TensorFlow Serving
+### Training a model locally to serve using ML Engine Online Prediction
 
 ```
 $> cd tf
-$> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export \
-      -- \
-      --num_classes=<number_of_classes> \
-      --valid_batch_size=<number_of_validation_samples>
-$> #
-$> # lots of output follow
-```
-Your trained model will be exported to `/tmp/model/00000001/` by default.
-```
-$> ls /tmp/model/00000001
-checkpoint  export.data-00000-of-00001  export.index  export.meta
-$>
-```
-
-### Training a model locally to serve using Cloud ML Online Prediction
-
-```
-$> cd tf
-$> gcloud beta ml local train --package-path=pubfig_cloudml --module-name=pubfig_cloudml.export \
+$> gcloud ml-engine local train \
+      --package-path=pubfig \
+      --module-name=pubfig.task \
       -- \
       --num_classes=<number_of_classes> \
       --valid_batch_size=<number_of_validation_samples>
@@ -67,20 +51,19 @@ $> # lots of output follow
 ```
 Your trained model will be exported to `/tmp/model/` by default.
 
-## Training Quickstart (Cloud ML)
+## Training Quickstart on Cloud ML Engine
 
 Install the Cloud ML SDK and prepare your environment per the [setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up).
 
-### Training a model using Cloud ML to serve using TensorFlow Serving
+### Training a model using Cloud ML to serve using ML Engine Online Prediction
 Example:
 ```
-$> gcloud beta ml jobs submit training example_job123 --package-path=pubfig_export --module-name=pubfig_export.export_log --region=us-central1 --staging-bucket=gs://wwoo-train
-```
-
-### Training a model using Cloud ML to serve using Cloud ML Online Prediction
-Example:
-```
-$> gcloud beta ml jobs submit training example_job123 --package-path=pubfig_cloudml --module-name=pubfig_cloudml.export_log --region=us-central1 --staging-bucket=gs://wwoo-train
+$> gcloud ml-engine jobs submit training example_job123 \
+      --package-path=pubfig \
+      --module-name=pubfig.task \
+      --region=us-central1 \
+      --staging-bucket=gs://wwoo-train \
+      --runtime-version=1.2
 ```
 
 ## Training Results
@@ -95,35 +78,6 @@ Cross entropy loss:
 Classification accuracy:
 
 ![Accuracy](https://storage.googleapis.com/wwoo-htdocs/images/tf_face_acc.png "Accuracy")
-
-
-## Prediction Quickstart (local)
-
-Firstly, you will need to install TensorFlow Serving by following the guide [here](https://tensorflow.github.io/serving/setup). This will also ask you to install the Bazel build system.
-
-Set environment variables:
-```
-$> SRC_ROOT=wherever/you/cloned/the/files
-$> TF_SERVING_ROOT=wherever/you/cloned/tensorflow/serving
-```
-Install the prerequisites:
-```
-$> cd $TF_SERVING_ROOT/web
-$> pip install -t lib -r requirements.txt
-```
-Bazel build and run the prediction server:
-```
-$> cd $TF_SERVING_ROOT
-$> ln -s $SRC_ROOT tf_models/tf_face
-$> bazel build tf_models/tf_face/tf/web/predict_serving
-$> # ... output
-$> /bazel-bin/tf_models/tf_face/tf/web/predict_serving &
-```
-Serve the model:
-```
-$> ./bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server --port=9000 --model_name=pubfig --model_base_path=/tmp/model
-```
-Navigate to http://localhost:8080.
 
 ## Getting and preparing the training data
 
@@ -175,32 +129,9 @@ $> python tf/face_extract/split_data.py ./data/vision-manifest.txt ./data/train.
 
 ## Training the model
 
-You can train and export a model using Google Cloud Machine Learning, or using TensorFlow.
+You can train and export a model using Google Cloud Machine Learning.
 
-Whichever you choose, you need to ensure that your input and output paths are set correctly.  See the source for more details [TODO: more details on specific flags to use].
-
-A pre-trained model that you can use exists at `tf/sample_run/models/00000001`.
-
-### Cloud Machine Learning
-
-To use Cloud Machine Learning, you need to have a Google Cloud Platform project with the service activated and billing enabled.
-
-*Note:* Using Cloud Machine Learning will cost you money, though you can always sign up for a free Google Cloud Platform account with $300 in credits.  It is your responsibility to manage your own usage.
-
-Follow the [Cloud Machine Learning setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up) to install all the local pre-requisites.
-
-`tf/pubfig_export/export.py` - Trains the TensowFlow model.  Use this to train the model locally using the gcloud SDK and have output printed to stdout.
-
-```
-$> gcloud beta ml local train --package-path=pubfig_export --module-name=pubfig_export.export
-```
-
-`tf/pubfig_export/export_log.py` - Similar to `export.py`, but uses Python logging instead of print statements.  Use this to train on Cloud ML using something similar to:
-
-```
-$> gcloud beta ml jobs submit training pubfig7 --package-path=pubfig_export \
-$>    --module-name=pubfig_export.export_log --region=us-central1 --staging-bucket=gs://wwoo-train
-```
+You need to ensure that your input and output paths are set correctly.  See the source for more details [TODO: more details on specific flags to use].
 
 The job output will be similar to the below. In this case, training terminates once 75% validation accuracy is reached.
 
@@ -236,31 +167,12 @@ The job output will be similar to the below. In this case, training terminates o
 
 `tf_face/web_cloudml/` contains source which can be deployed to Google App Engine.
 
-You will need to modify `tf_face/web_cloudml/main.py` to match your project ID and model name.  Also replace `resources/vapi-acct.json.replaceme` with your service account key.
+You will need to modify `tf_face/web/main.py` to match your project ID and model name.  Also replace `resources/vapi-acct.json.replaceme` with your service account key.
 
 Deploy using:
 ```
-$> cd ${SRC_ROOT}/tf/web_cloudml
-$> gcloud app deployed
+$> cd ${SRC_ROOT}/tf/web
+$> gcloud app deploy
 $>
 $> # lots of output follows
-```
-
-### Using TensorFlow Serving
-
-TensorFlow Serving comes with a standard model server.  You can run it using:
-
-```
-$> $TF_SERVING_ROOT/bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server \
-$>   --port=9000 --model_name=pubfig --model_base_path=sample_run/models/
-```
-
-The web interface uses the TensorFlow Serving protos, so the easiest way to run it is again symlink'ing the source to wherever you build TensorFlow Serving.  For example, if you symlink'ed `tf_face` to `$TF_SERVING_ROOT/tf_models/tf_face`:
-
-```
-$> # Build it
-$> bazel build $TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
-
-$> # Run it
-$> $TF_SERVING_ROOT/tf_models/tf_face/tf/web/predict_serving
 ```

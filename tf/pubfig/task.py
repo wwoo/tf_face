@@ -4,7 +4,11 @@ Author: Win Woo
 '''
 
 import tensorflow as tf
-from tensorflow.contrib.session_bundle import exporter
+from tensorflow.core.protobuf import meta_graph_pb2
+from tensorflow.python.saved_model import builder
+from tensorflow.python.saved_model import signature_def_utils
+from tensorflow.python.saved_model import signature_constants
+from tensorflow.python.saved_model import tag_constants
 
 import os
 import time
@@ -28,7 +32,7 @@ flags.DEFINE_boolean('shuffle_batches', True, 'Whether to shuffle batches')
 flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
 flags.DEFINE_integer('num_classes', 48, 'Number of classification classes')
 flags.DEFINE_float('keep_prob', 0.75, 'L2 dropout, percentage to keep with each training batch')
-flags.DEFINE_integer('valid_steps', 10, 'Number of training steps between between validation steps')
+flags.DEFINE_integer('valid_steps', 1, 'Number of training steps between between validation steps')
 flags.DEFINE_integer('image_summary_steps', 200, 'Number of training steps between generating an image summary')
 flags.DEFINE_boolean('mod_input', True, 'Whether to perform random modification of images')
 flags.DEFINE_integer('max_steps', 10000, 'Maximum number of training steps')
@@ -51,22 +55,23 @@ flags.DEFINE_integer('grid_summary_y', 4, 'Number of images on the y-axis of the
 flags.DEFINE_string('train_file', '/tmp/data/train.txt', 'Path to training file')
 flags.DEFINE_string('valid_file', '/tmp/data/valid.txt', 'Path to validation file')
 flags.DEFINE_string('tmp_dir', '/tmp/', 'Temporary data path')
-flags.DEFINE_string('gcs_export_uri', 'gs://wwoo-train/pubfig/export/', 'Path to output files')
+flags.DEFINE_string('gcs_export_uri', 'gs://wwoo-models/pubfig/', 'Path to output files')
 
-flags.DEFINE_boolean('copy_from_gcs', False, 'Whether to copy files GCS')
-flags.DEFINE_boolean('copy_to_gcs', False, 'Whether to copy logs to GCS')
-flags.DEFINE_string('gcs_tarball_uri', 'gs://wwoo-train/pubfig/out.tar.gz', 'Path to GCS tarball source')
+flags.DEFINE_boolean('copy_from_gcs', True, 'Whether to copy files GCS')
+flags.DEFINE_boolean('copy_to_gcs', True, 'Whether to copy logs and output model to GCS')
+flags.DEFINE_string('gcs_tarball_uri', 'gs://wwoo-public/face/out.tar.gz', 'Path to GCS tarball source')
 flags.DEFINE_string('data_path_prepend', '/tmp/', 'Path to prepend to training and validation files')
 
 flags.DEFINE_boolean('save_model', True, 'Whether to save the model')
-flags.DEFINE_float('valid_accuracy_exit_threshold', 0.8, 'Exit training once this validation accuracy is reached')
-flags.DEFINE_float('train_accuracy_exit_threshold', 0.9, 'Exit training once this training accuracy is reached')
+flags.DEFINE_float('valid_accuracy_exit_threshold', 0.01, 'Exit training once this validation accuracy is reached')
+flags.DEFINE_float('train_accuracy_exit_threshold', 0.01, 'Exit training once this training accuracy is reached')
 
 flags.DEFINE_integer('export_version', 1, 'Model export version')
 
 # base path to prepend to training and validation data files
 TENSOR_BASE_PATH = tf.constant(FLAGS.data_path_prepend)
 #===========================
+
 
 def get_image_label_list(image_label_file):
     filenames = []
@@ -76,10 +81,11 @@ def get_image_label_list(image_label_file):
         filenames.append(filename)
         labels.append(int(label))
 
-    logging.info("get_image_label_list: read " + str(len(filenames)) \
+    print("get_image_label_list: read " + str(len(filenames)) \
         + " items")
 
     return filenames, labels
+
 
 def read_image_from_disk(input_queue):
     label = input_queue[1]
@@ -94,12 +100,14 @@ def read_image_from_disk(input_queue):
 
     return rgb_image, label
 
+
 def get_input_queue(train_file, num_epochs=None):
     train_images, train_labels = get_image_label_list(train_file)
     input_queue = tf.train.slice_input_producer([train_images, train_labels],
         num_epochs=num_epochs, shuffle=FLAGS.shuffle_batches)
 
     return input_queue
+
 
 def batch_inputs(input_queue, batch_size=FLAGS.train_batch_size):
     image, label = read_image_from_disk(input_queue)
@@ -119,6 +127,7 @@ def batch_inputs(input_queue, batch_size=FLAGS.train_batch_size):
     return image_batch, tf.one_hot(tf.to_int64(label_batch),
         FLAGS.num_classes, on_value=1.0, off_value=0.0)
 
+
 def conv2d(x, W, b, strides=1):
     # Conv2D wrapper, with bias and relu activation
     x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1],
@@ -126,10 +135,12 @@ def conv2d(x, W, b, strides=1):
     x = tf.nn.bias_add(x, b)
     return tf.nn.relu(x)
 
+
 def maxpool2d(x, k=2, layer=""):
     # MaxPool2D wrapper
     return tf.nn.max_pool(x, ksize=[1, k, k, 1],
         strides=[1, k, k, 1], padding='SAME')
+
 
 def conv_net(x, weights, biases, image_size, keep_prob=FLAGS.keep_prob):
     # Convolution and max pooling layers
@@ -175,6 +186,67 @@ def conv_net(x, weights, biases, image_size, keep_prob=FLAGS.keep_prob):
 
     return out
 
+
+def get_weights_biases():
+
+    # k is the image size after 4 maxpools
+    k = int(math.ceil(FLAGS.image_size / 2.0 / 2.0 / 2.0 / 2.0))
+
+    # Store weights for our convolution & fully-connected layers
+    with tf.name_scope('weights'):
+        weights = {
+            'wc1': tf.Variable(tf.truncated_normal(
+              [FLAGS.conv_size, FLAGS.conv_size, 1 * FLAGS.image_channels,
+               FLAGS.wc1_layer_size], stddev=FLAGS.normal_stdev)),
+            'wc2': tf.Variable(tf.truncated_normal(
+              [FLAGS.conv_size, FLAGS.conv_size, FLAGS.wc1_layer_size,
+               FLAGS.wc2_layer_size], stddev=FLAGS.normal_stdev)),
+            'wc3': tf.Variable(tf.truncated_normal(
+              [FLAGS.conv_size, FLAGS.conv_size, FLAGS.wc2_layer_size,
+               FLAGS.wc3_layer_size], stddev=FLAGS.normal_stdev)),
+            'wc4': tf.Variable(tf.truncated_normal(
+              [FLAGS.conv_size, FLAGS.conv_size, FLAGS.wc3_layer_size,
+               FLAGS.wc4_layer_size], stddev=FLAGS.normal_stdev)),
+            'wd1': tf.Variable(tf.truncated_normal([k * k * FLAGS.wc4_layer_size,
+              FLAGS.wd1_layer_size], stddev=FLAGS.normal_stdev)),
+            'wd2': tf.Variable(tf.truncated_normal([FLAGS.wd1_layer_size,
+              FLAGS.wd2_layer_size], stddev=FLAGS.normal_stdev)),
+            'out': tf.Variable(tf.truncated_normal([FLAGS.wd2_layer_size,
+              FLAGS.num_classes], stddev=FLAGS.normal_stdev))
+      }
+
+    # Store biases for our convolution and fully-connected layers
+    with tf.name_scope('biases'):
+        biases = {
+            'bc1': tf.Variable(tf.truncated_normal([FLAGS.wc1_layer_size],
+                stddev=FLAGS.normal_stdev)),
+            'bc2': tf.Variable(tf.truncated_normal([FLAGS.wc2_layer_size],
+                stddev=FLAGS.normal_stdev)),
+            'bc3': tf.Variable(tf.truncated_normal([FLAGS.wc3_layer_size],
+                stddev=FLAGS.normal_stdev)),
+            'bc4': tf.Variable(tf.truncated_normal([FLAGS.wc4_layer_size],
+                stddev=FLAGS.normal_stdev)),
+            'bd1': tf.Variable(tf.truncated_normal([FLAGS.wd1_layer_size],
+                stddev=FLAGS.normal_stdev)),
+            'bd2': tf.Variable(tf.truncated_normal([FLAGS.wd2_layer_size],
+                stddev=FLAGS.normal_stdev)),
+            'out': tf.Variable(tf.truncated_normal([FLAGS.num_classes],
+                stddev=FLAGS.normal_stdev))
+      }
+
+    return weights, biases
+
+
+def build_prediction_graph(images, weights, biases):
+    with tf.name_scope('serving'):
+        rgb_image = tf.image.decode_jpeg(images[0], channels=FLAGS.image_channels)
+        rgb_image  = tf.image.convert_image_dtype(rgb_image, dtype=tf.float32)
+        rgb_image = tf.image.resize_images(rgb_image,
+            [FLAGS.image_size, FLAGS.image_size])
+        image_batch = tf.expand_dims(rgb_image, 0)
+        return tf.nn.softmax(conv_net(image_batch, weights, biases, FLAGS.image_size, 1.0))
+
+
 def generate_image_summary(x, weights, biases, step, image_size=FLAGS.image_size):
     with tf.name_scope('generate_image_summary'):
         x =  tf.slice(x, [0, 0, 0, 0],
@@ -199,18 +271,78 @@ def generate_image_summary(x, weights, biases, step, image_size=FLAGS.image_size
 
     return conv_summary, relu_summary
 
+
 def gcs_copy(source, dest):
-    logging.info('Recursively copying from %s to %s' %
+    print('Recursively copying from %s to %s' %
         (source, dest))
     subprocess.check_call(['gsutil', '-q', '-m', 'cp', '-R']
         + [source] + [dest])
+
 
 def extract_tarball(tarball, dest):
     tar = tarfile.open(tarball, 'r')
     tar.extractall(FLAGS.tmp_dir)
 
-def main(argv=None):
 
+def export_model(checkpoint, model_dir):
+    with tf.Session(graph=tf.Graph()) as sess:
+        # Define API inputs/outputs object
+        image_bytes = tf.placeholder(tf.string)
+        weights, biases = get_weights_biases()
+        prediction = build_prediction_graph(image_bytes, weights, biases)
+
+        inputs = {'image_bytes': image_bytes}
+        input_signatures = {}
+
+        for key, val in inputs.iteritems():
+            predict_input_tensor = meta_graph_pb2.TensorInfo()
+            predict_input_tensor.name = val.name
+            predict_input_tensor.dtype = val.dtype.as_datatype_enum
+            input_signatures[key] = predict_input_tensor
+
+        outputs = {'prediction': prediction}
+        output_signatures = {}
+
+        for key, val in outputs.iteritems():
+            predict_output_tensor = meta_graph_pb2.TensorInfo()
+            predict_output_tensor.name = val.name
+            predict_output_tensor.dtype = val.dtype.as_datatype_enum
+            output_signatures[key] = predict_output_tensor
+
+        inputs_name, outputs_name = {}, {}
+
+        for key, val in inputs.iteritems():
+            inputs_name[key] = val.name
+        for key, val in outputs.iteritems():
+            outputs_name[key] = val.name
+
+        tf.add_to_collection('inputs', json.dumps(inputs_name))
+        tf.add_to_collection('outputs', json.dumps(outputs_name))
+
+        init_op = tf.global_variables_initializer()
+        sess.run(init_op)
+
+        # Restore the latest checkpoint and save the model
+        saver = tf.train.Saver()
+        saver.restore(sess, checkpoint)
+
+        predict_signature_def = signature_def_utils.build_signature_def(
+            input_signatures, output_signatures,
+            signature_constants.PREDICT_METHOD_NAME)
+        build = builder.SavedModelBuilder(model_dir)
+        build.add_meta_graph_and_variables(
+            sess, [tag_constants.SERVING],
+            signature_def_map={
+                signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY:
+                    predict_signature_def
+            },
+            assets_collection=tf.get_collection(tf.GraphKeys.ASSET_FILEPATHS))
+
+        # Finally save the model
+        build.save()
+
+
+def main(argv=None):
     try:
         # Create tmp dir
         if not os.path.exists(FLAGS.tmp_dir):
@@ -222,7 +354,7 @@ def main(argv=None):
             os.makedirs(base_log_dir)
 
     except Exception, e:
-        logging.info("Failed to create directory %s" % (base_log_dir))
+        print("Failed to create directory %s" % (base_log_dir))
         exit(1)
 
     try:
@@ -233,7 +365,7 @@ def main(argv=None):
                 FLAGS.tmp_dir)
 
     except Exception, e:
-        logging.info("Failed to download and extract tarball from %s to %s" % (FLAGS.gcs_tarball_uri, FLAGS.tmp_dir))
+        print("Failed to download and extract tarball from %s to %s" % (FLAGS.gcs_tarball_uri, FLAGS.tmp_dir))
         exit(1)
 
     # Create input queues to retrieve image and label batches
@@ -252,50 +384,7 @@ def main(argv=None):
         FLAGS.image_channels])
     y_ = tf.placeholder("float32", shape=[None, FLAGS.num_classes])
 
-    # k is the image size after 4 maxpools
-    k = int(math.ceil(FLAGS.image_size / 2.0 / 2.0 / 2.0 / 2.0))
-
-    # Store weights for our convolution & fully-connected layers
-    with tf.name_scope('weights'):
-        weights = {
-            'wc1': tf.Variable(tf.truncated_normal(
-                [FLAGS.conv_size, FLAGS.conv_size, 1 * FLAGS.image_channels,
-                    FLAGS.wc1_layer_size], stddev=FLAGS.normal_stdev)),
-            'wc2': tf.Variable(tf.truncated_normal(
-                [FLAGS.conv_size, FLAGS.conv_size, FLAGS.wc1_layer_size,
-                    FLAGS.wc2_layer_size], stddev=FLAGS.normal_stdev)),
-            'wc3': tf.Variable(tf.truncated_normal(
-                [FLAGS.conv_size, FLAGS.conv_size, FLAGS.wc2_layer_size,
-                    FLAGS.wc3_layer_size], stddev=FLAGS.normal_stdev)),
-            'wc4': tf.Variable(tf.truncated_normal(
-                [FLAGS.conv_size, FLAGS.conv_size, FLAGS.wc3_layer_size,
-                    FLAGS.wc4_layer_size], stddev=FLAGS.normal_stdev)),
-            'wd1': tf.Variable(tf.truncated_normal([k * k * FLAGS.wc4_layer_size,
-                FLAGS.wd1_layer_size], stddev=FLAGS.normal_stdev)),
-            'wd2': tf.Variable(tf.truncated_normal([FLAGS.wd1_layer_size,
-                FLAGS.wd2_layer_size], stddev=FLAGS.normal_stdev)),
-            'out': tf.Variable(tf.truncated_normal([FLAGS.wd2_layer_size,
-                FLAGS.num_classes], stddev=FLAGS.normal_stdev))
-        }
-
-    # Store biases for our convolution and fully-connected layers
-    with tf.name_scope('biases'):
-        biases = {
-            'bc1': tf.Variable(tf.truncated_normal([FLAGS.wc1_layer_size],
-                stddev=FLAGS.normal_stdev)),
-            'bc2': tf.Variable(tf.truncated_normal([FLAGS.wc2_layer_size],
-                stddev=FLAGS.normal_stdev)),
-            'bc3': tf.Variable(tf.truncated_normal([FLAGS.wc3_layer_size],
-                stddev=FLAGS.normal_stdev)),
-            'bc4': tf.Variable(tf.truncated_normal([FLAGS.wc4_layer_size],
-                stddev=FLAGS.normal_stdev)),
-            'bd1': tf.Variable(tf.truncated_normal([FLAGS.wd1_layer_size],
-                stddev=FLAGS.normal_stdev)),
-            'bd2': tf.Variable(tf.truncated_normal([FLAGS.wd2_layer_size],
-                stddev=FLAGS.normal_stdev)),
-            'out': tf.Variable(tf.truncated_normal([FLAGS.num_classes],
-                stddev=FLAGS.normal_stdev))
-        }
+    weights, biases = get_weights_biases()
 
     # Define dropout rate to prevent overfitting
     keep_prob = tf.placeholder(tf.float32)
@@ -306,7 +395,7 @@ def main(argv=None):
     # Calculate loss
     with tf.name_scope('cross_entropy'):
         # Define loss and optimizer
-        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(pred, y_))
+        cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y_))
         cost_summary = tf.summary.scalar("cost_summary", cost)
 
     # Run optimizer step
@@ -331,20 +420,7 @@ def main(argv=None):
         accuracy = tf.reduce_mean(tf.cast(pred_correct, tf.float32))
         accuracy_summary = tf.summary.scalar("accuracy_summary", accuracy)
 
-    # For serving (inference)
-    with tf.name_scope('serving'):
-        softmax_pred = tf.nn.softmax(conv_net(x_, weights, biases, FLAGS.image_size, 1.0))
-
     sess = tf.Session()
-
-    train_writer = tf.summary.FileWriter(os.path.join(base_log_dir, 'train_logs'),
-        sess.graph)
-    valid_writer = tf.summary.FileWriter(os.path.join(base_log_dir, 'valid_logs'),
-        sess.graph)
-
-    summary_op = tf.summary.merge_all()
-    #init_op = tf.initialize_all_variables() # use this for tensorflow 0.11rc0
-    init_op = tf.global_variables_initializer() # use this for tensorflow 0.12rc0
 
     # we need init_local_op step only on tensorflow 0.10rc due to a regression from 0.9
     # https://github.com/tensorflow/models/pull/297
@@ -353,7 +429,18 @@ def main(argv=None):
     step = 0
 
     with sess.as_default():
+
+        #init_op = tf.initialize_all_variables() # use this for tensorflow 0.11rc0
+        init_op = tf.global_variables_initializer() # use this for tensorflow 0.12rc0
         sess.run(init_op)
+
+        train_writer = tf.summary.FileWriter(os.path.join(base_log_dir, 'train_logs'),
+            sess.graph)
+        valid_writer = tf.summary.FileWriter(os.path.join(base_log_dir, 'valid_logs'),
+            sess.graph)
+
+        summary_op = tf.summary.merge_all()
+
         # sess.run(init_local_op) # we need this only with tensorflow 0.10rc
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
@@ -368,8 +455,7 @@ def main(argv=None):
                 if step % FLAGS.image_summary_steps == 0:
                     # write image summaries to view in tensorboard
                     x, y = sess.run([valid_image_batch, valid_label_batch])
-                    conv_summary, relu_summary = generate_image_summary(x_, weights,
-                        biases, step, FLAGS.image_size)
+                    conv_summary, relu_summary = generate_image_summary(x_, weights, biaes, step, FLAGS.image_size)
                     result = sess.run([conv_summary, relu_summary],
                         feed_dict={keep_prob: 1.0, x_: x, y_: y})
                     valid_writer.add_summary(result[0])
@@ -382,7 +468,7 @@ def main(argv=None):
                     train_writer.add_summary(result[0], step)
                     train_acc = result[1]
 
-                    logging.info("Step [%s] (train): accuracy: %s, loss: %s" %
+                    print("Step [%s] (train): accuracy: %s, loss: %s" %
                         (step, train_acc, result[2]))
 
                     # validation accuracy, loss and write summaries
@@ -392,13 +478,13 @@ def main(argv=None):
                     valid_writer.add_summary(result[0], step)
                     valid_acc = result[1]
 
-                    logging.info("Step [%s] (valid): accuracy: %s, loss: %s" %
+                    print("Step [%s] (valid): accuracy: %s, loss: %s" %
                         (step, valid_acc, result[2]))
 
                     if (valid_acc >= FLAGS.valid_accuracy_exit_threshold and
                         train_acc >= FLAGS.train_accuracy_exit_threshold) or step >= FLAGS.max_steps:
 
-                        logging.info("Step [%s] (complete)" % (step))
+                        print("Step [%s] (complete)" % (step))
                         # exit if the validation accuracy threshold is reached
                         break
 
@@ -406,7 +492,7 @@ def main(argv=None):
             x, y = sess.run([valid_image_batch, valid_label_batch])
             result = sess.run([accuracy], feed_dict={keep_prob: 1.0,
                 x_: x, y_: y})
-            logging.info("Validation accuracy: %s" % result[0])
+            print("Validation accuracy: %s" % result[0])
 
         finally:
             if FLAGS.save_model:
@@ -419,17 +505,10 @@ def main(argv=None):
                 if not os.path.exists(base_model_dir):
                     os.makedirs(base_model_dir)
 
-                    saver = tf.train.Saver(sharded=False)
-                    model_exporter = exporter.Exporter(saver)
+                saver = tf.train.Saver(sharded=False)
+                saver.save(sess, base_model_dir)
 
-                    model_exporter.init(
-                        sess.graph.as_graph_def(),
-                        named_graph_signatures={
-                            'inputs': exporter.generic_signature({'images': x_}),
-                            'outputs': exporter.generic_signature({'scores': softmax_pred})})
-
-                    model_exporter.export(base_model_dir, tf.constant(FLAGS.export_version),
-                        sess)
+                export_model(base_model_dir, os.path.join(base_model_dir, 'export'))
 
                 if FLAGS.copy_to_gcs:
                     gcs_copy(base_log_dir, FLAGS.gcs_export_uri)
@@ -437,9 +516,7 @@ def main(argv=None):
 
             coord.request_stop()
             coord.join(threads)
-            sess.close()
-
-    return 0
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.logging.set_verbosity(tf.logging.INFO)
+    main()
