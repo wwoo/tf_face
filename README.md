@@ -28,11 +28,13 @@ $> ./get_data.sh
 $> #
 $> # lots of output follows
 ```
+For more details on the python scripts called by `get_data.sh`, see the "Getting and preparing the training data" section below.
+
 Move the prepared data to `/tmp`, where the training code expects to find them by default:
 ```
 $> mv data /tmp
 ```
-Train the model locally.  Make sure to specify the correct number of training classes (`--num_classes`) and number of samples in your validation set (`--valid_batch_size`).  This will differ depending on the number of files you've downloaded and how the data has been divided.
+When training the model, make sure to specify the correct number of training classes (`--num_classes`) and number of samples in your validation set (`--valid_batch_size`).  This will differ depending on the number of files you've downloaded and how the data has been divided.
 
 Check the training source for other flags you can specify.
 
