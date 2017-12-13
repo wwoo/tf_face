@@ -111,6 +111,8 @@ Classification accuracy:
 
 ## Getting and preparing the training data
 
+This section describes the Python scripts called by `get_data.sh`.  Provided everything completed successfully, you should not need to call these scripts directly to retrieve and process the data.
+
 The model is trained using a subset of data from [PubFig](http://www.cs.columbia.edu/CAVE/databases/pubfig/). PubFig provides a development set and evaluation set of images, with no people or sample overlaps between the two.  For our face recognition use case, we will just use the evaluation dataset and split these further into training and validation.
 
 PubFig provides only the links to images on the public web, not the images themselves.  Therefore, it is necessary to download them separately using `pubfig_get.py`.  Some images may not be downloaded successfully due to technical issues such as broken links, removed content, unreachable servers and so-on.
