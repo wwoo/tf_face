@@ -1,4 +1,4 @@
-# Recognising faces using Vision API, TensorFlow & Google Cloud Machine Learning
+# Classifying faces using Vision API, TensorFlow & Google Cloud Machine Learning
 
 ## Demo
 
