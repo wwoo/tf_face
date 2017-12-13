@@ -28,7 +28,7 @@ def get_vision_service():
 def get_cloudml_service():
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
         os.path.join(resources.__path__[0], 'vapi-acct.json'), SCOPES)
-    return discovery.build('ml', 'v1beta1', credentials=credentials)
+    return discovery.build('ml', 'v1', credentials=credentials)
 
 flask_app = Flask(__name__)
 
