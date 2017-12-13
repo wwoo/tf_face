@@ -36,7 +36,7 @@ Train the model locally.  Make sure to specify the correct number of training cl
 
 Check the training source for other flags you can specify.
 
-### Training a model locally to serve using ML Engine Online Prediction
+### Training a model locally
 
 ```
 $> cd tf
@@ -129,7 +129,7 @@ $> python tf/face_extract/split_data.py ./data/vision-manifest.txt ./data/train.
 
 ## Training the model
 
-You can train and export a model using Google Cloud Machine Learning.
+You can train and export a model using Google Cloud ML Engine.
 
 You need to ensure that your input and output paths are set correctly.  See the source for more details [TODO: more details on specific flags to use].
 

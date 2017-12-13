@@ -32,7 +32,7 @@ flags.DEFINE_boolean('shuffle_batches', True, 'Whether to shuffle batches')
 flags.DEFINE_float('learning_rate', 0.001, 'Learning rate')
 flags.DEFINE_integer('num_classes', 48, 'Number of classification classes')
 flags.DEFINE_float('keep_prob', 0.75, 'L2 dropout, percentage to keep with each training batch')
-flags.DEFINE_integer('valid_steps', 1, 'Number of training steps between between validation steps')
+flags.DEFINE_integer('valid_steps', 100, 'Number of training steps between between validation steps')
 flags.DEFINE_integer('image_summary_steps', 200, 'Number of training steps between generating an image summary')
 flags.DEFINE_boolean('mod_input', True, 'Whether to perform random modification of images')
 flags.DEFINE_integer('max_steps', 10000, 'Maximum number of training steps')
@@ -63,8 +63,8 @@ flags.DEFINE_string('gcs_tarball_uri', 'gs://wwoo-public/face/out.tar.gz', 'Path
 flags.DEFINE_string('data_path_prepend', '/tmp/', 'Path to prepend to training and validation files')
 
 flags.DEFINE_boolean('save_model', True, 'Whether to save the model')
-flags.DEFINE_float('valid_accuracy_exit_threshold', 0.01, 'Exit training once this validation accuracy is reached')
-flags.DEFINE_float('train_accuracy_exit_threshold', 0.01, 'Exit training once this training accuracy is reached')
+flags.DEFINE_float('valid_accuracy_exit_threshold', 0.75, 'Exit training once this validation accuracy is reached')
+flags.DEFINE_float('train_accuracy_exit_threshold', 0.90, 'Exit training once this training accuracy is reached')
 
 flags.DEFINE_integer('export_version', 1, 'Model export version')
 
