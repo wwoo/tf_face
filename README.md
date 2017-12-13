@@ -66,6 +66,34 @@ $> gcloud ml-engine jobs submit training example_job123 \
       --runtime-version=1.2
 ```
 
+The job output will be similar to the below. In this case, training terminates once 75% validation accuracy is reached.
+
+```
+14:13:29.600 Validating job requirements...
+14:13:31.063 Job creation request has been successfully validated.
+14:13:31.183 Job pubfig7 is queued.
+14:13:36.350 Waiting for job to be provisioned.
+14:20:35.038 Running command: python -m pubfig.train_log
+14:20:36.915 Recursively copying from gs://wwoo-train/pubfig/out.tar.gz to /tmp/
+14:20:45.528 get_image_label_list: read 4416 items
+14:20:45.629 get_image_label_list: read 336 items
+...
+18:42:03.778 Step [6700] (valid): accuracy: 0.703125, loss: 3.42011
+18:45:55.734 Step [6800] (train): accuracy: 0.729167, loss: 3.08664
+18:46:04.288 Step [6800] (valid): accuracy: 0.708333, loss: 3.33873
+18:49:49.276 Step [6900] (train): accuracy: 1.0, loss: 0.0014053
+18:49:57.623 Step [6900] (valid): accuracy: 0.752604, loss: 2.98494
+18:49:57.624 Step [6900] (complete)
+18:49:57.866 Recursively copying from /tmp/logs to gs://wwoo-train/pubfig/export/
+18:49:59.649 Recursively copying from /tmp/model to gs://wwoo-train/pubfig/export/
+18:50:01.943 Module completed; cleaning up.
+18:50:01.944 Clean up finished.
+18:50:01.945 Task completed successfully.
+18:50:25.382 Tearing down TensorFlow.
+18:51:09.881 Finished tearing down TensorFlow.
+18:51:16.318 Job completed successfully.
+```
+
 ## Training Results
 The model can be trained to 80% validation accuracy with 48 classes (face categories), using 4402 training and 336 validation samples.  With the default hyperparameters, overfitting started to occur past ~1.2K steps using a learning rate of 0.01.
 
@@ -127,45 +155,11 @@ Example invocation to read from `./data/vision-manifest.txt`, and write the trai
 $> python tf/face_extract/split_data.py ./data/vision-manifest.txt ./data/train.txt ./data/valid.txt
 ```
 
-## Training the model
-
-You can train and export a model using Google Cloud ML Engine.
-
-You need to ensure that your input and output paths are set correctly.  See the source for more details [TODO: more details on specific flags to use].
-
-The job output will be similar to the below. In this case, training terminates once 75% validation accuracy is reached.
-
-```
-14:13:29.600 Validating job requirements...
-14:13:31.063 Job creation request has been successfully validated.
-14:13:31.183 Job pubfig7 is queued.
-14:13:36.350 Waiting for job to be provisioned.
-14:20:35.038 Running command: python -m pubfig.train_log
-14:20:36.915 Recursively copying from gs://wwoo-train/pubfig/out.tar.gz to /tmp/
-14:20:45.528 get_image_label_list: read 4416 items
-14:20:45.629 get_image_label_list: read 336 items
-...
-18:42:03.778 Step [6700] (valid): accuracy: 0.703125, loss: 3.42011
-18:45:55.734 Step [6800] (train): accuracy: 0.729167, loss: 3.08664
-18:46:04.288 Step [6800] (valid): accuracy: 0.708333, loss: 3.33873
-18:49:49.276 Step [6900] (train): accuracy: 1.0, loss: 0.0014053
-18:49:57.623 Step [6900] (valid): accuracy: 0.752604, loss: 2.98494
-18:49:57.624 Step [6900] (complete)
-18:49:57.866 Recursively copying from /tmp/logs to gs://wwoo-train/pubfig/export/
-18:49:59.649 Recursively copying from /tmp/model to gs://wwoo-train/pubfig/export/
-18:50:01.943 Module completed; cleaning up.
-18:50:01.944 Clean up finished.
-18:50:01.945 Task completed successfully.
-18:50:25.382 Tearing down TensorFlow.
-18:51:09.881 Finished tearing down TensorFlow.
-18:51:16.318 Job completed successfully.
-```
-
 ## Web Interface
 
-### Using Cloud Machine Learning Online Prediction
+### Using Cloud ML Engine Online Prediction
 
-`tf_face/web_cloudml/` contains source which can be deployed to Google App Engine.
+`tf_face/web/` contains source which can be deployed to Google App Engine.
 
 You will need to modify `tf_face/web/main.py` to match your project ID and model name.  Also replace `resources/vapi-acct.json.replaceme` with your service account key.
 
