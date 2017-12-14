@@ -1,11 +1,5 @@
 # Classifying faces using Vision API, TensorFlow & Google Cloud ML Engine 
 
-## Demo
-
-Live demo (hopefully) [here](http://pubfig-ml.appspot.com/).
-
-Note: the first prediction might come back a little slow.
-
 ## Training Quickstart (local)
 
 Firstly, follow the [setup guide](https://cloud.google.com/ml/docs/how-tos/getting-set-up) to install the Google Cloud Machine Learning SDK.  This will also ask you to install TensorFlow.
